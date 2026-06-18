@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音読がんばりゲーム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ===== リセット・ベース ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1b2a;
+    --panel: #1a2e45;
+    --accent: #f5a623;
+    --green: #4caf50;
+    --red: #e53935;
+    --blue: #42a5f5;
+    --text: #e8f4fd;
+    --muted: #7a9ab8;
+    --gold: #ffd700;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* ===== ヘッダー ===== */
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(255,215,0,0.5);
+    letter-spacing: 0.05em;
+  }
+  header p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 4px;
+  }
+
+  /* ===== ステータスバー ===== */
+  .status-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 24px;
+    width: 100%;
+    max-width: 800px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    text-align: center;
+    flex: 1;
+    min-width: 120px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat-card .label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .stat-card .value {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+  .stat-card .sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  /* EXPバー */
+  .exp-bar-wrap {
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 24px;
+  }
+  .exp-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .exp-bar-bg {
+    background: rgba(255,255,255,0.1);
+    border-radius: 99px;
+    height: 12px;
+    overflow: hidden;
+  }
+  .exp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    border-radius: 99px;
+    transition: width 0.6s ease;
+    box-shadow: 0 0 8px rgba(245,166,35,0.6);
+  }
+
+  /* ===== メインコンテナ ===== */
+  .main {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ===== テキスト選択 ===== */
+  .text-selector {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .text-selector h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .text-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .tab-btn:hover, .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* ===== 音読テキスト表示 ===== */
+  .reading-panel {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .reading-title {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .reading-text {
+    font-size: 1.35rem;
+    line-height: 2.2;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    min-height: 120px;
+  }
+  .reading-text .word {
+    display: inline;
+    transition: background 0.2s, color 0.2s;
+    border-radius: 4px;
+    padding: 0 2px;
+  }
+  .reading-text .word.hit {
+    background: rgba(76,175,80,0.3);
+    color: #a5d6a7;
+  }
+  .reading-text .word.miss {
+    background: rgba(229,57,53,0.3);
+    color: #ef9a9a;
+    text-decoration: underline wavy #e53935;
+  }
+  .reading-text .word.current {
+    background: rgba(245,166,35,0.3);
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  /* ===== 認識結果 ===== */
+  .result-panel {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    min-height: 60px;
+    border: 1px dashed rgba(255,255,255,0.15);
+  }
+  .result-panel .result-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .result-panel .result-text {
+    font-size: 1.1rem;
+    color: var(--blue);
+    line-height: 1.8;
+  }
+
+  /* ===== スコア表示 ===== */
+  .score-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .score-badge {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--gold);
+  }
+  .score-detail {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .stars {
+    font-size: 1.8rem;
+    letter-spacing: 4px;
+  }
+
+  /* ===== コントロールボタン ===== */
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, #e53935, #ff7043);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(229,57,53,0.4);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 28px rgba(229,57,53,0.6); transform: translateY(-2px); }
+  .btn-primary.recording {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    box-shadow: 0 4px 20px rgba(76,175,80,0.4);
+    animation: pulse-btn 1s infinite;
+  }
+  @keyframes pulse-btn {
+    0%, 100% { box-shadow: 0 4px 20px rgba(76,175,80,0.4); }
+    50% { box-shadow: 0 4px 30px rgba(76,175,80,0.8); }
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+  .btn-accent {
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    color: #000;
+    box-shadow: 0 4px 20px rgba(245,166,35,0.4);
+  }
+  .btn-accent:hover { box-shadow: 0 6px 28px rgba(245,166,35,0.6); transform: translateY(-2px); }
+
+  /* ===== 履歴 ===== */
+  .history-panel {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .history-panel h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+  .history-item .h-title { color: var(--text); font-weight: 700; }
+  .history-item .h-score { color: var(--gold); font-weight: 900; }
+  .history-item .h-date { color: var(--muted); font-size: 0.75rem; }
+
+  /* ===== レベルアップオーバーレイ ===== */
+  .levelup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .levelup-overlay.show { display: flex; }
+  .levelup-box {
+    border: 4px solid var(--gold);
+    border-radius: 24px;
+    padding: 48px 60px;
+    text-align: center;
+    background: var(--panel);
+    box-shadow: 0 0 60px rgba(255,215,0,0.5);
+    animation: lvup-in 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes lvup-in {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .levelup-box .lvup-label { font-size: 1rem; color: var(--muted); letter-spacing: 0.2em; }
+  .levelup-box .lvup-title { font-size: 3rem; font-weight: 900; color: var(--gold); text-shadow: 0 0 30px rgba(255,215,0,0.8); margin: 8px 0; }
+  .levelup-box .lvup-rank { font-size: 1.2rem; color: var(--accent); margin-bottom: 24px; }
+  .levelup-box .lvup-close {
+    background: var(--gold);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 32px;
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* パーティクル */
+  .particle {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99;
+    animation: fall 2s ease-in forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* EXPフロート */
+  .exp-float {
+    position: fixed;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--gold);
+    pointer-events: none;
+    z-index: 98;
+    animation: float-up 1.5s ease-out forwards;
+  }
+  @keyframes float-up {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-80px); opacity: 0; }
+  }
+
+  /* ===== マイク波形 ===== */
+  .mic-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 32px;
+    margin: 8px 0;
+  }
+  .mic-wave .bar {
+    width: 4px;
+    background: var(--green);
+    border-radius: 2px;
+    animation: wave 0.8s ease-in-out infinite;
+    height: 8px;
+  }
+  .mic-wave .bar:nth-child(2) { animation-delay: 0.1s; }
+  .mic-wave .bar:nth-child(3) { animation-delay: 0.2s; }
+  .mic-wave .bar:nth-child(4) { animation-delay: 0.3s; }
+  .mic-wave .bar:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes wave {
+    0%, 100% { height: 8px; }
+    50% { height: 28px; }
+  }
+  .mic-wave.hidden { display: none; }
+
+  /* ===== レスポンシブ ===== */
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.5rem; }
+    .reading-text { font-size: 1.1rem; line-height: 2; }
+    .btn { padding: 12px 20px; font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐛 音読がんばりゲーム</h1>
+  <p>虫の説明文を声に出して読もう！</p>
+</header>
+
+<!-- ステータスバー -->
+<div class="status-bar">
+  <div class="stat-card">
+    <div class="label">レベル</div>
+    <div class="value" id="lvDisplay">1</div>
+    <div class="sub" id="rankDisplay">見習い音読士</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">今日の回数</div>
+    <div class="value" id="todayCount">0</div>
+    <div class="sub">回</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">最高スコア</div>
+    <div class="value" id="bestScore">0</div>
+    <div class="sub">点</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">総EXP</div>
+    <div class="value" id="totalExp">0</div>
+    <div class="sub">EXP</div>
+  </div>
+</div>
+
+<!-- EXPバー -->
+<div class="exp-bar-wrap">
+  <div class="exp-bar-label">
+    <span id="expLabel">EXP: 0 / 100</span>
+    <span id="nextRankLabel">次のランク: 音読の徒</span>
+  </div>
+  <div class="exp-bar-bg">
+    <div class="exp-bar-fill" id="expBar" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- テキスト選択 -->
+  <div class="text-selector">
+    <h2>📚 テキストを選ぼう</h2>
+    <div class="text-tabs" id="textTabs"></div>
+  </div>
+
+  <!-- 音読パネル -->
+  <div class="reading-panel">
+    <div class="reading-title">
+      <span id="currentTitle">テキストを選んでください</span>
+      <span id="diffBadge" style="font-size:0.8rem; background:rgba(245,166,35,0.2); padding:2px 10px; border-radius:99px; color:var(--accent);">★☆☆</span>
+    </div>
+    <div class="reading-text" id="readingText">
+      ← 上のボタンからテキストを選んでください
+    </div>
+
+    <!-- 認識結果 -->
+    <div class="result-panel">
+      <div class="result-label">🎤 認識した声</div>
+      <div class="result-text" id="recognizedText">ここに認識した声が表示されます</div>
+    </div>
+
+    <!-- マイク波形 -->
+    <div class="mic-wave hidden" id="micWave">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+
+    <!-- スコア -->
+    <div class="score-display" id="scoreDisplay" style="display:none">
+      <div class="score-badge" id="scoreNum">0</div>
+      <div>
+        <div class="stars" id="starsDisplay">☆☆☆</div>
+        <div class="score-detail" id="scoreDetail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- コントロール -->
+  <div class="controls">
+    <button class="btn btn-primary" id="micBtn" onclick="toggleRecording()">
+      🎤 録音スタート
+    </button>
+    <button class="btn btn-secondary" onclick="resetCurrent()">
+      🔄 やり直す
+    </button>
+    <button class="btn btn-accent" onclick="nextText()" id="nextBtn" style="display:none">
+      次のテキスト ▶
+    </button>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="history-panel">
+    <h2>📖 音読履歴</h2>
+    <div class="history-list" id="historyList">
+      <div style="color:var(--muted); font-size:0.85rem; text-align:center; padding:16px;">まだ記録がありません</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- レベルアップオーバーレイ -->
+<div class="levelup-overlay" id="levelupOverlay">
+  <div class="levelup-box">
+    <div class="lvup-label">★ LEVEL UP! ★</div>
+    <div class="lvup-title" id="lvupNum">Lv.2</div>
+    <div class="lvup-rank" id="lvupRank">音読の徒</div>
+    <button class="lvup-close" onclick="closeLevelup()">つづける！</button>
+  </div>
+</div>
+
+<script>
+// ===== テキストデータ（虫の説明文・小3レベル） =====
+const TEXTS = [
+  {
+    id: 1,
+    title: "モンシロチョウ",
+    diff: 1,
+    diffLabel: "★☆☆",
+    text: "モンシロチョウは、春から秋にかけてよく見られるちょうちょうです。はねは白く、黒いもようがあります。たまごはキャベツやアブラナのはにうみつけられます。よう虫はあおむしとよばれ、はっぱをもりもり食べてそだちます。さなぎになってから、やがてうつくしいちょうちょうにへんしんします。"
+  },
+  {
+    id: 2,
+    title: "カブトムシ",
+    diff: 1,
+    diffLabel: "★☆☆",
+    text: "カブトムシは日本の夏を代表するこん虫です。おすには大きなつのがあり、えさやなわばりをめぐってたたかいます。夜になると、クヌギやコナラの木のじゅえきをなめに集まってきます。よう虫は土の中でくさった木をたべてそだち、さなぎをへてせい虫になります。"
+  },
+  {
+    id: 3,
+    title: "ホタル",
+    diff: 2,
+    diffLabel: "★★☆",
+    text: "ホタルは、おしりのあたりが光るふしぎなこん虫です。きれいな川のそばにすんでいて、夏のよるにやわらかな光をはなちながらとびまわります。よう虫は水の中でカワニナというかいをたべてそだちます。みずがよごれると生きていけないため、ホタルがいる場所はかんきょうがよいしょうこです。"
+  },
+  {
+    id: 4,
+    title: "アリ",
+    diff: 2,
+    diffLabel: "★★☆",
+    text: "アリはとても小さなこん虫ですが、じぶんのたいじゅうの何十倍もの重さのものをはこぶことができます。アリはむれをつくってせいかつし、じょおうあり、はたらきあり、おすありなど、それぞれがやくわりをもっています。えさを見つけたアリは、においのあとをつけながらすにもどり、なかまにばしょをおしえます。"
+  },
+  {
+    id: 5,
+    title: "カマキリ",
+    diff: 2,
+    diffLabel: "★★☆",
+    text: "カマキリは、かまのようなまえあしをもつこん虫です。草むらにじっとかくれて、えものがちかづくのをまちます。そして、すばやくまえあしでつかまえます。カマキリはバッタやチョウなど、じぶんよりも大きなこん虫もたべることがあります。めすはあきにたまごのかたまりをつくり、そのなかでたまごがふゆをこします。"
+  },
+  {
+    id: 6,
+    title: "ミツバチ",
+    diff: 3,
+    diffLabel: "★★★",
+    text: "ミツバチは花のみつをあつめ、はちみつをつくるこん虫です。はたらきばちは花からみつをあつめながら、花ふんをはこぶはたらきもしています。このおかげで、植物はじゅふんができてみをつけることができます。ミツバチはおどりをつかって、なかまにみつのある花のほうこうやきょりをつたえることができます。"
+  },
+  {
+    id: 7,
+    title: "ゲンジボタルとヘイケボタル",
+    diff: 3,
+    diffLabel: "★★★",
+    text: "日本にはゲンジボタルとヘイケボタルという二しゅるいのホタルがよく知られています。ゲンジボタルはからだが大きく、ひかりかたもゆっくりとしています。いっぽう、ヘイケボタルはからだが小さく、ひかりかたもはやめです。どちらも水のきれいなかわのそばにすんでいますが、ヘイケボタルはたんぼやみぞでも見られます。"
+  },
+  {
+    id: 8,
+    title: "こん虫のからだのつくり",
+    diff: 3,
+    diffLabel: "★★★",
+    text: "こん虫のからだは、あたま・むね・はらの三つのぶぶんにわかれています。あしは六本あり、むねからはえています。おおくのこん虫には、むねに二まいか四まいのはねがあります。こん虫はこきゅうをするためのあなが、からだのよこにならんでいます。このあなはきもんとよばれ、ここからくうきをとりいれています。"
+  }
+];
+
+// ===== ランクシステム =====
+const RANKS = [
+  { lv: 1,  name: "見習い音読士",   exp: 0 },
+  { lv: 2,  name: "音読の徒",       exp: 100 },
+  { lv: 3,  name: "音読の修行者",   exp: 250 },
+  { lv: 4,  name: "音読の使い手",   exp: 450 },
+  { lv: 5,  name: "音読の達人",     exp: 700 },
+  { lv: 6,  name: "音読の名人",     exp: 1000 },
+  { lv: 7,  name: "音読の師匠",     exp: 1400 },
+  { lv: 8,  name: "音読の伝説",     exp: 1900 },
+  { lv: 9,  name: "音読の神",       exp: 2500 },
+  { lv: 10, name: "音読マスター",   exp: 9999 },
+];
+
+// ===== 状態 =====
+let state = JSON.parse(localStorage.getItem('ondoku_state') || 'null') || {
+  exp: 0, level: 1, todayCount: 0, bestScore: 0,
+  lastDate: '', history: []
+};
+
+// 日付リセット
+const today = new Date().toDateString();
+if (state.lastDate !== today) { state.todayCount = 0; state.lastDate = today; }
+
+let currentText = null;
+let recognition = null;
+let isRecording = false;
+let finalTranscript = '';
+
+// ===== 初期化 =====
+function init() {
+  renderTabs();
+  updateStatusUI();
+  renderHistory();
+  selectText(TEXTS[0]);
+}
+
+// ===== タブ描画 =====
+function renderTabs() {
+  const container = document.getElementById('textTabs');
+  container.innerHTML = '';
+  TEXTS.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = t.title;
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectText(t);
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ===== テキスト選択 =====
+function selectText(t) {
+  currentText = t;
+  document.getElementById('currentTitle').textContent = t.title;
+  document.getElementById('diffBadge').textContent = t.diffLabel;
+  renderReadingText(t.text, [], []);
+  resetCurrent();
+}
+
+// ===== 音読テキスト描画 =====
+function renderReadingText(text, hits, misses) {
+  const el = document.getElementById('readingText');
+  // 文字単位でspan化
+  el.innerHTML = text.split('').map((ch, i) => {
+    let cls = 'word';
+    if (hits.includes(i)) cls += ' hit';
+    else if (misses.includes(i)) cls += ' miss';
+    return `<span class="${cls}" data-i="${i}">${ch}</span>`;
+  }).join('');
+}
+
+// ===== リセット =====
+function resetCurrent() {
+  finalTranscript = '';
+  document.getElementById('recognizedText').textContent = 'ここに認識した声が表示されます';
+  document.getElementById('scoreDisplay').style.display = 'none';
+  document.getElementById('nextBtn').style.display = 'none';
+  document.getElementById('micWave').classList.add('hidden');
+  if (currentText) renderReadingText(currentText.text, [], []);
+  stopRecording();
+}
+
+// ===== 録音トグル =====
+function toggleRecording() {
+  if (isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('このブラウザは音声認識に対応していません。\nGoogle Chrome をお使いください。');
+    return;
+  }
+  if (!currentText) { alert('テキストを選んでください'); return; }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  finalTranscript = '';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    const btn = document.getElementById('micBtn');
+    btn.textContent = '⏹ 録音停止';
+    btn.classList.add('recording');
+    document.getElementById('micWave').classList.remove('hidden');
+    document.getElementById('scoreDisplay').style.display = 'none';
+    document.getElementById('nextBtn').style.display = 'none';
+  };
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalTranscript += t;
+      else interim += t;
+    }
+    document.getElementById('recognizedText').textContent = finalTranscript + interim;
+  };
+
+  recognition.onerror = (e) => {
+    console.error('音声認識エラー:', e.error);
+    stopRecording();
+  };
+
+  recognition.onend = () => {
+    if (isRecording) {
+      // 自動再起動
+      try { recognition.start(); } catch(e) { stopRecording(); }
+    }
+  };
+
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+  const btn = document.getElementById('micBtn');
+  btn.textContent = '🎤 録音スタート';
+  btn.classList.remove('recording');
+  document.getElementById('micWave').classList.add('hidden');
+
+  if (finalTranscript.trim().length > 0 && currentText) {
+    calcScore();
+  }
+}
+
+// ===== 採点 =====
+function calcScore() {
+  const original = currentText.text.replace(/[　\s]/g, '');
+  const spoken = finalTranscript.replace(/[　\s]/g, '');
+
+  // 文字ごとのマッチング（最長共通部分列ベース）
+  const hits = [];
+  const misses = [];
+  let si = 0;
+  const origChars = currentText.text.split('');
+
+  // 認識テキストを正規化
+  const spokenNorm = spoken;
+  let spokenIdx = 0;
+
+  origChars.forEach((ch, oi) => {
+    if (ch === '　' || ch === ' ' || ch === '\n') return;
+    // 認識テキストの中でこの文字を探す
+    const found = spokenNorm.indexOf(ch, spokenIdx);
+    if (found !== -1 && found < spokenIdx + 5) {
+      hits.push(oi);
+      spokenIdx = found + 1;
+    } else {
+      misses.push(oi);
+    }
+  });
+
+  const totalChars = origChars.filter(c => c !== '　' && c !== ' ' && c !== '\n').length;
+  const hitCount = hits.length;
+  const accuracy = Math.round((hitCount / totalChars) * 100);
+
+  // スコア計算（正確さ + 難易度ボーナス）
+  const diffBonus = currentText.diff * 5;
+  const score = Math.min(100, accuracy + diffBonus);
+
+  // 星評価
+  let stars = '☆☆☆';
+  if (score >= 90) stars = '★★★';
+  else if (score >= 70) stars = '★★☆';
+  else if (score >= 50) stars = '★☆☆';
+
+  // EXP付与
+  const expGain = Math.round(score * currentText.diff * 0.5);
+
+  // UI更新
+  renderReadingText(currentText.text, hits, misses);
+  document.getElementById('scoreNum').textContent = score + '点';
+  document.getElementById('starsDisplay').textContent = stars;
+  document.getElementById('scoreDetail').innerHTML =
+    `正確さ: ${accuracy}% (${hitCount}/${totalChars}文字)<br>+${expGain} EXP獲得！`;
+  document.getElementById('scoreDisplay').style.display = 'flex';
+  document.getElementById('nextBtn').style.display = 'flex';
+
+  // EXPフロート
+  showExpFloat(expGain);
+
+  // 状態更新
+  const prevLevel = state.level;
+  state.exp += expGain;
+  state.todayCount++;
+  if (score > state.bestScore) state.bestScore = score;
+
+  // レベルアップ判定
+  let newLevel = 1;
+  for (let r of RANKS) { if (state.exp >= r.exp) newLevel = r.lv; }
+  state.level = newLevel;
+
+  // 履歴追加
+  state.history.unshift({
+    title: currentText.title,
+    score,
+    stars,
+    date: new Date().toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
+  });
+  if (state.history.length > 20) state.history.pop();
+
+  saveState();
+  updateStatusUI();
+  renderHistory();
+
+  if (state.level > prevLevel) {
+    setTimeout(() => showLevelup(state.level), 600);
+  }
+}
+
+// ===== EXPフロート =====
+function showExpFloat(exp) {
+  const el = document.createElement('div');
+  el.className = 'exp-float';
+  el.textContent = `+${exp} EXP`;
+  el.style.left = '50%';
+  el.style.top = '60%';
+  el.style.transform = 'translateX(-50%)';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ===== レベルアップ =====
+function showLevelup(lv) {
+  const rank = RANKS.find(r => r.lv === lv) || RANKS[RANKS.length - 1];
+  document.getElementById('lvupNum').textContent = `Lv.${lv}`;
+  document.getElementById('lvupRank').textContent = rank.name;
+  document.getElementById('levelupOverlay').classList.add('show');
+  spawnParticles();
+}
+function closeLevelup() {
+  document.getElementById('levelupOverlay').classList.remove('show');
+}
+
+// ===== パーティクル =====
+function spawnParticles() {
+  const colors = ['#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#96ceb4','#ffeaa7','#dda0dd'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.top = '-10px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (1.5 + Math.random()) + 's';
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 2500);
+  }
+}
+
+// ===== 次のテキスト =====
+function nextText() {
+  const idx = TEXTS.findIndex(t => t.id === currentText.id);
+  const next = TEXTS[(idx + 1) % TEXTS.length];
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === (idx + 1) % TEXTS.length);
+  });
+  selectText(next);
+}
+
+// ===== UI更新 =====
+function updateStatusUI() {
+  document.getElementById('lvDisplay').textContent = state.level;
+  document.getElementById('todayCount').textContent = state.todayCount;
+  document.getElementById('bestScore').textContent = state.bestScore;
+  document.getElementById('totalExp').textContent = state.exp;
+
+  const rank = RANKS.find(r => r.lv === state.level) || RANKS[0];
+  const nextRank = RANKS.find(r => r.lv === state.level + 1);
+  document.getElementById('rankDisplay').textContent = rank.name;
+
+  if (nextRank) {
+    const expInLevel = state.exp - rank.exp;
+    const expNeeded = nextRank.exp - rank.exp;
+    const pct = Math.min(100, Math.round((expInLevel / expNeeded) * 100));
+    document.getElementById('expBar').style.width = pct + '%';
+    document.getElementById('expLabel').textContent = `EXP: ${state.exp} / ${nextRank.exp}`;
+    document.getElementById('nextRankLabel').textContent = `次のランク: ${nextRank.name}`;
+  } else {
+    document.getElementById('expBar').style.width = '100%';
+    document.getElementById('expLabel').textContent = `EXP: ${state.exp} (MAX)`;
+    document.getElementById('nextRankLabel').textContent = '最高ランク達成！';
+  }
+}
+
+// ===== 履歴描画 =====
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (state.history.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted); font-size:0.85rem; text-align:center; padding:16px;">まだ記録がありません</div>';
+    return;
+  }
+  list.innerHTML = state.history.map(h => `
+    <div class="history-item">
+      <span class="h-title">${h.title}</span>
+      <span class="h-score">${h.score}点 ${h.stars}</span>
+      <span class="h-date">${h.date}</span>
+    </div>
+  `).join('');
+}
+
+// ===== 保存 =====
+function saveState() {
+  localStorage.setItem('ondoku_state', JSON.stringify(state));
+}
+
+// ===== 起動 =====
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR SHOOTER</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    touch-action: none;
+    user-select: none;
+  }
+
+  /* カメラ映像 */
+  #camera {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* ゲームキャンバス（カメラの上に重ねる） */
+  #gameCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  /* HUD */
+  #hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+  }
+  .hud-panel {
+    background: rgba(0,0,0,0.6);
+    border: 2px solid rgba(0,255,100,0.6);
+    border-radius: 12px;
+    padding: 8px 16px;
+    color: #00ff64;
+    font-size: 0.85rem;
+    text-shadow: 0 0 8px #00ff64;
+  }
+  .hud-panel .big {
+    font-size: 1.6rem;
+    font-weight: bold;
+    line-height: 1.2;
+  }
+  .hud-panel .label {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    letter-spacing: 0.1em;
+  }
+
+  /* HPバー */
+  #hpBar {
+    position: fixed;
+    bottom: 100px;
+    left: 16px;
+    right: 16px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .hp-label {
+    color: #ff4444;
+    font-size: 0.75rem;
+    text-shadow: 0 0 6px #ff4444;
+    margin-bottom: 4px;
+  }
+  .hp-bg {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,68,68,0.5);
+    border-radius: 99px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4444, #ff8800);
+    border-radius: 99px;
+    transition: width 0.3s;
+    box-shadow: 0 0 8px rgba(255,68,68,0.6);
+  }
+
+  /* 弾数 */
+  #ammo {
+    position: fixed;
+    bottom: 120px;
+    right: 16px;
+    z-index: 10;
+    color: #ffd700;
+    font-size: 1.1rem;
+    text-shadow: 0 0 8px #ffd700;
+    pointer-events: none;
+  }
+
+  /* リロードボタン */
+  #reloadBtn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10;
+    background: rgba(255,215,0,0.2);
+    border: 2px solid #ffd700;
+    color: #ffd700;
+    border-radius: 50%;
+    width: 72px;
+    height: 72px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    text-shadow: 0 0 8px #ffd700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+  }
+  #reloadBtn.reloading {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* スタート画面 */
+  #startScreen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #00ff64;
+    text-align: center;
+    padding: 32px;
+  }
+  #startScreen h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 20px #00ff64;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  #startScreen p {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+    line-height: 1.8;
+  }
+  #startBtn {
+    background: linear-gradient(135deg, #00ff64, #00cc50);
+    color: #000;
+    border: none;
+    border-radius: 16px;
+    padding: 18px 48px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 0 30px rgba(0,255,100,0.5);
+  }
+  .warn {
+    margin-top: 20px;
+    color: #ffd700;
+    font-size: 0.8rem;
+    opacity: 0.8;
+  }
+
+  /* ゲームオーバー・クリア画面 */
+  #resultScreen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+    padding: 32px;
+  }
+  #resultScreen.show { display: flex; }
+  #resultTitle {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 16px;
+  }
+  #resultScore {
+    font-size: 1.5rem;
+    color: #ffd700;
+    margin-bottom: 32px;
+  }
+  #retryBtn {
+    background: linear-gradient(135deg, #ff4444, #ff8800);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 16px 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* 照準 */
+  #crosshair {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  #crosshair::before, #crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(0,255,100,0.8);
+    border-radius: 2px;
+  }
+  #crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+  #crosshair::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
+
+  /* ヒットエフェクト */
+  .hit-effect {
+    position: fixed;
+    pointer-events: none;
+    z-index: 8;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 10px #ffd700;
+    animation: hit-float 0.8s ease-out forwards;
+  }
+  @keyframes hit-float {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-60px) scale(1.5); opacity: 0; }
+  }
+
+  /* ダメージフラッシュ */
+  #damageFlash {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,0,0,0.4);
+    z-index: 9;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  #damageFlash.flash { opacity: 1; }
+
+  /* リロードプログレス */
+  #reloadProgress {
+    position: fixed;
+    bottom: 200px;
+    right: 16px;
+    z-index: 10;
+    color: #ffd700;
+    font-size: 0.8rem;
+    text-align: center;
+    display: none;
+    pointer-events: none;
+  }
+  .reload-bar-bg {
+    width: 80px;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 99px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .reload-bar-fill {
+    height: 100%;
+    background: #ffd700;
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.05s linear;
+  }
+
+  /* ウェーブ通知 */
+  #waveNotify {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    color: #ffd700;
+    font-size: 2rem;
+    font-weight: bold;
+    text-shadow: 0 0 20px #ffd700;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-align: center;
+  }
+  #waveNotify.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- カメラ映像 -->
+<video id="camera" autoplay playsinline muted></video>
+
+<!-- ゲームキャンバス -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- 照準 -->
+<div id="crosshair"></div>
+
+<!-- ダメージフラッシュ -->
+<div id="damageFlash"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-panel">
+    <div class="label">SCORE</div>
+    <div class="big" id="scoreDisp">0</div>
+  </div>
+  <div class="hud-panel">
+    <div class="label">WAVE</div>
+    <div class="big" id="waveDisp">1</div>
+  </div>
+  <div class="hud-panel">
+    <div class="label">KILL</div>
+    <div class="big" id="killDisp">0</div>
+  </div>
+</div>
+
+<!-- HPバー -->
+<div id="hpBar">
+  <div class="hp-label">❤️ HP</div>
+  <div class="hp-bg">
+    <div class="hp-fill" id="hpFill" style="width:100%"></div>
+  </div>
+</div>
+
+<!-- 弾数 -->
+<div id="ammo">🔫 10 / 10</div>
+
+<!-- リロードプログレス -->
+<div id="reloadProgress">
+  RELOADING...
+  <div class="reload-bar-bg">
+    <div class="reload-bar-fill" id="reloadFill"></div>
+  </div>
+</div>
+
+<!-- リロードボタン -->
+<button id="reloadBtn" onclick="reload()">🔄<br>RELOAD</button>
+
+<!-- ウェーブ通知 -->
+<div id="waveNotify" id="waveNotify"></div>
+
+<!-- スタート画面 -->
+<div id="startScreen">
+  <h1>👾 AR SHOOTER</h1>
+  <p>現実空間に敵が出現！<br>タップして撃退しよう！<br><br>カメラの使用を許可してください</p>
+  <button id="startBtn" onclick="startGame()">🎮 ゲームスタート</button>
+  <div class="warn">⚠️ カメラ・マイクの許可が必要です<br>Google Chrome推奨</div>
+</div>
+
+<!-- リザルト画面 -->
+<div id="resultScreen">
+  <div id="resultTitle">GAME OVER</div>
+  <div id="resultScore">SCORE: 0</div>
+  <button id="retryBtn" onclick="retryGame()">🔄 もう一度</button>
+</div>
+
+<script>
+// ===== 設定 =====
+const MAX_HP = 100;
+const MAX_AMMO = 10;
+const RELOAD_TIME = 2000; // ms
+const ENEMY_SPAWN_INTERVAL_BASE = 2000;
+const WAVE_KILL_COUNT = 8; // このキル数でウェーブアップ
+
+// ===== 状態 =====
+let score = 0;
+let hp = MAX_HP;
+let ammo = MAX_AMMO;
+let kills = 0;
+let wave = 1;
+let isReloading = false;
+let gameRunning = false;
+let enemies = [];
+let bullets = [];
+let particles = [];
+let spawnTimer = null;
+let animFrame = null;
+
+// ===== Canvas =====
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ===== カメラ起動 =====
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    document.getElementById('camera').srcObject = stream;
+  } catch (e) {
+    // フロントカメラにフォールバック
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      document.getElementById('camera').srcObject = stream;
+    } catch (e2) {
+      alert('カメラを使用できませんでした。カメラの許可を確認してください。');
+    }
+  }
+}
+
+// ===== 敵クラス =====
+const ENEMY_TYPES = [
+  { name: 'スライム',  emoji: '🟢', hp: 1, speed: 0.3, score: 10, size: 60, color: '#4caf50' },
+  { name: 'ゴブリン',  emoji: '👺', hp: 2, speed: 0.5, score: 20, size: 55, color: '#ff5722' },
+  { name: 'スケルトン',emoji: '💀', hp: 3, speed: 0.4, score: 30, size: 58, color: '#9e9e9e' },
+  { name: 'ドラゴン',  emoji: '🐉', hp: 5, speed: 0.25, score: 60, size: 80, color: '#e91e63' },
+  { name: 'デーモン',  emoji: '😈', hp: 4, speed: 0.6, score: 50, size: 65, color: '#9c27b0' },
+];
+
+class Enemy {
+  constructor() {
+    const type = ENEMY_TYPES[Math.floor(Math.random() * Math.min(wave + 1, ENEMY_TYPES.length))];
+    this.type = type;
+    this.hp = type.hp + Math.floor(wave * 0.5);
+    this.maxHp = this.hp;
+    this.speed = type.speed * (1 + wave * 0.1);
+    this.score = type.score * wave;
+    this.size = type.size;
+
+    // ランダムな位置（画面外から登場）
+    const side = Math.floor(Math.random() * 4);
+    const W = canvas.width, H = canvas.height;
+    if (side === 0) { this.x = Math.random() * W; this.y = -this.size; }
+    else if (side === 1) { this.x = W + this.size; this.y = Math.random() * H; }
+    else if (side === 2) { this.x = Math.random() * W; this.y = H + this.size; }
+    else { this.x = -this.size; this.y = Math.random() * H; }
+
+    this.vx = 0;
+    this.vy = 0;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.alive = true;
+    this.hitFlash = 0;
+    this.scale = 0.1; // 登場アニメ
+  }
+
+  update() {
+    // 画面中央に向かって移動
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const dx = cx - this.x;
+    const dy = cy - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 1) {
+      this.vx = (dx / dist) * this.speed;
+      this.vy = (dy / dist) * this.speed;
+    }
+    this.wobble += 0.05;
+    this.x += this.vx + Math.sin(this.wobble) * 0.5;
+    this.y += this.vy;
+
+    // 登場アニメ
+    if (this.scale < 1) this.scale = Math.min(1, this.scale + 0.05);
+
+    // ヒットフラッシュ
+    if (this.hitFlash > 0) this.hitFlash--;
+
+    // 画面中央に到達したらダメージ
+    if (dist < 60) {
+      this.alive = false;
+      takeDamage(10 + wave * 2);
+    }
+  }
+
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.scale(this.scale, this.scale);
+
+    // ヒットフラッシュ
+    if (this.hitFlash > 0) {
+      ctx.filter = 'brightness(3)';
+    }
+
+    // 影
+    ctx.beginPath();
+    ctx.ellipse(0, this.size * 0.4, this.size * 0.4, this.size * 0.15, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fill();
+
+    // 敵本体（絵文字）
+    ctx.font = `${this.size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.type.emoji, 0, 0);
+
+    ctx.filter = 'none';
+
+    // HPバー
+    const barW = this.size * 0.8;
+    const barH = 6;
+    const barX = -barW / 2;
+    const barY = -this.size * 0.6;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = this.hp / this.maxHp > 0.5 ? '#4caf50' : this.hp / this.maxHp > 0.25 ? '#ff9800' : '#f44336';
+    ctx.fillRect(barX, barY, barW * (this.hp / this.maxHp), barH);
+
+    ctx.restore();
+  }
+
+  hit(dmg) {
+    this.hp -= dmg;
+    this.hitFlash = 6;
+    if (this.hp <= 0) {
+      this.alive = false;
+      return true;
+    }
+    return false;
+  }
+}
+
+// ===== 弾クラス =====
+class Bullet {
+  constructor(x, y, tx, ty) {
+    this.x = x;
+    this.y = y;
+    const dx = tx - x;
+    const dy = ty - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const speed = 18;
+    this.vx = (dx / dist) * speed;
+    this.vy = (dy / dist) * speed;
+    this.alive = true;
+    this.trail = [];
+  }
+
+  update() {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 8) this.trail.shift();
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50) {
+      this.alive = false;
+    }
+  }
+
+  draw() {
+    // トレイル
+    this.trail.forEach((p, i) => {
+      const alpha = (i / this.trail.length) * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4 * (i / this.trail.length), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,220,0,${alpha})`;
+      ctx.fill();
+    });
+    // 弾本体
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffd700';
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ===== パーティクル =====
+class Particle {
+  constructor(x, y, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 8;
+    this.vy = (Math.random() - 0.5) * 8;
+    this.life = 1;
+    this.color = color;
+    this.size = Math.random() * 8 + 4;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.2;
+    this.life -= 0.04;
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+    ctx.fillStyle = this.color + Math.floor(this.life * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+  }
+}
+
+// ===== ゲームループ =====
+function gameLoop() {
+  if (!gameRunning) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // パーティクル
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => { p.update(); p.draw(); });
+
+  // 弾
+  bullets = bullets.filter(b => b.alive);
+  bullets.forEach(b => {
+    b.update();
+    b.draw();
+    // 敵との当たり判定
+    enemies.forEach(e => {
+      if (!e.alive || !b.alive) return;
+      const dx = b.x - e.x;
+      const dy = b.y - e.y;
+      if (Math.sqrt(dx * dx + dy * dy) < e.size * 0.5) {
+        b.alive = false;
+        const killed = e.hit(1);
+        if (killed) {
+          score += e.score;
+          kills++;
+          spawnExplosion(e.x, e.y, e.type.color);
+          updateHUD();
+          checkWave();
+        } else {
+          // ヒットエフェクト
+          spawnHitText(e.x, e.y - e.size * 0.5, '-1');
+        }
+      }
+    });
+  });
+
+  // 敵
+  enemies = enemies.filter(e => e.alive);
+  enemies.forEach(e => { e.update(); e.draw(); });
+
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+// ===== 爆発エフェクト =====
+function spawnExplosion(x, y, color) {
+  for (let i = 0; i < 20; i++) {
+    particles.push(new Particle(x, y, color));
+  }
+  spawnHitText(x, y, '💥 KILL!');
+}
+
+function spawnHitText(x, y, text) {
+  const el = document.createElement('div');
+  el.className = 'hit-effect';
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+// ===== 発射 =====
+function shoot(tx, ty) {
+  if (!gameRunning || isReloading || ammo <= 0) {
+    if (ammo <= 0 && !isReloading) {
+      // 弾切れ音的なフィードバック
+      document.getElementById('reloadBtn').style.animation = 'none';
+      setTimeout(() => document.getElementById('reloadBtn').style.animation = '', 100);
+    }
+    return;
+  }
+  ammo--;
+  bullets.push(new Bullet(canvas.width / 2, canvas.height / 2, tx, ty));
+  updateAmmoUI();
+
+  if (ammo === 0) {
+    // 自動リロード
+    setTimeout(reload, 300);
+  }
+}
+
+// ===== タップ/クリックで発射 =====
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  shoot(e.clientX, e.clientY);
+});
+
+// ===== リロード =====
+function reload() {
+  if (isReloading || ammo === MAX_AMMO) return;
+  isReloading = true;
+  document.getElementById('reloadBtn').classList.add('reloading');
+  document.getElementById('reloadProgress').style.display = 'block';
+
+  const fill = document.getElementById('reloadFill');
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 100 / (RELOAD_TIME / 50);
+    fill.style.width = Math.min(100, progress) + '%';
+  }, 50);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    ammo = MAX_AMMO;
+    isReloading = false;
+    document.getElementById('reloadBtn').classList.remove('reloading');
+    document.getElementById('reloadProgress').style.display = 'none';
+    fill.style.width = '0%';
+    updateAmmoUI();
+  }, RELOAD_TIME);
+}
+
+// ===== ダメージ =====
+function takeDamage(dmg) {
+  hp = Math.max(0, hp - dmg);
+  updateHUD();
+
+  // フラッシュ
+  const flash = document.getElementById('damageFlash');
+  flash.classList.add('flash');
+  setTimeout(() => flash.classList.remove('flash'), 150);
+
+  if (hp <= 0) gameOver();
+}
+
+// ===== ウェーブ管理 =====
+function checkWave() {
+  if (kills >= wave * WAVE_KILL_COUNT) {
+    wave++;
+    showWaveNotify();
+    // スポーン間隔を短く
+    clearInterval(spawnTimer);
+    const interval = Math.max(600, ENEMY_SPAWN_INTERVAL_BASE - wave * 150);
+    spawnTimer = setInterval(spawnEnemy, interval);
+  }
+}
+
+function showWaveNotify() {
+  const el = document.getElementById('waveNotify');
+  el.textContent = `⚡ WAVE ${wave} ⚡`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ===== 敵スポーン =====
+function spawnEnemy() {
+  if (!gameRunning) return;
+  // ウェーブが上がるほど複数体スポーン
+  const count = Math.min(Math.ceil(wave / 2), 3);
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      if (gameRunning) enemies.push(new Enemy());
+    }, i * 300);
+  }
+}
+
+// ===== HUD更新 =====
+function updateHUD() {
+  document.getElementById('scoreDisp').textContent = score;
+  document.getElementById('waveDisp').textContent = wave;
+  document.getElementById('killDisp').textContent = kills;
+  document.getElementById('hpFill').style.width = (hp / MAX_HP * 100) + '%';
+}
+
+function updateAmmoUI() {
+  document.getElementById('ammo').textContent = `🔫 ${ammo} / ${MAX_AMMO}`;
+}
+
+// ===== ゲームスタート =====
+async function startGame() {
+  await startCamera();
+  document.getElementById('startScreen').style.display = 'none';
+
+  score = 0; hp = MAX_HP; ammo = MAX_AMMO;
+  kills = 0; wave = 1;
+  enemies = []; bullets = []; particles = [];
+  isReloading = false;
+  gameRunning = true;
+
+  updateHUD();
+  updateAmmoUI();
+
+  // 最初のウェーブ通知
+  showWaveNotify();
+
+  // スポーン開始
+  spawnTimer = setInterval(spawnEnemy, ENEMY_SPAWN_INTERVAL_BASE);
+  spawnEnemy(); // 即座に1体
+
+  gameLoop();
+}
+
+// ===== ゲームオーバー =====
+function gameOver() {
+  gameRunning = false;
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(animFrame);
+
+  document.getElementById('resultTitle').textContent = '💀 GAME OVER';
+  document.getElementById('resultTitle').style.color = '#ff4444';
+  document.getElementById('resultScore').textContent = `SCORE: ${score}  WAVE: ${wave}  KILL: ${kills}`;
+  document.getElementById('resultScreen').classList.add('show');
+}
+
+// ===== リトライ =====
+function retryGame() {
+  document.getElementById('resultScreen').classList.remove('show');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  startGame();
+}
+</script>
+</body>
+</html>
