@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>タスク入力フォーム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary:    #5b7fff;
+      --primary-dk: #3a5ce6;
+      --accent:     #ff7eb3;
+      --bg:         #f0f4ff;
+      --card:       #ffffff;
+      --text:       #2d2d3a;
+      --muted:      #8a8aa0;
+      --border:     #dde3f5;
+      --success:    #4caf7d;
+      --radius:     18px;
+      --shadow:     0 8px 32px rgba(91,127,255,.13);
+    }
+
+    body {
+      font-family: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', 'Hiragino Maru Gothic Pro', 'UD Digi Kyokasho N-R', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    /* ===== ヘッダー ===== */
+    .header {
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+
+    .header-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .header h1 {
+      font-size: clamp(22px, 5vw, 28px);
+      font-weight: 800;
+      line-height: 1.3;
+      color: var(--text);
+    }
+
+    .header p {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ===== カード ===== */
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 28px;
+    }
+
+    /* ===== タスクID バナー ===== */
+    .task-id-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #eef1ff, #f5f0ff);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 28px;
+    }
+
+    .task-id-banner .label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .1em;
+      white-space: nowrap;
+    }
+
+    .task-id-banner .id-value {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: .06em;
+      flex: 1;
+    }
+
+    .task-id-banner .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      flex-shrink: 0;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .5; transform: scale(.7); }
+    }
+
+    /* ===== フォームグループ ===== */
+    .form-group {
+      margin-bottom: 22px;
+    }
+
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .form-label .icon {
+      font-size: 15px;
+    }
+
+    .required-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-left: auto;
+    }
+
+    .optional-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      background: #f0f0f8;
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-left: auto;
+    }
+
+    /* ===== カテゴリ選択（タブ風） ===== */
+    .category-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .category-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 14px 8px;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      background: #fafbff;
+      cursor: pointer;
+      transition: all .2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .category-btn input[type="radio"] {
+      display: none;
+    }
+
+    .category-btn .cat-icon {
+      font-size: 22px;
+    }
+
+    .category-btn .cat-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .category-btn:has(input:checked) {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #eef1ff, #f5f0ff);
+    }
+
+    .category-btn:has(input:checked) .cat-label {
+      color: var(--primary);
+    }
+
+    /* ===== テキスト入力 ===== */
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      background: #fafbff;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(91,127,255,.12);
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.7;
+    }
+
+    /* ===== セレクト ===== */
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: '▾';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--primary);
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    select {
+      padding-right: 40px;
+      cursor: pointer;
+    }
+
+    /* ===== 優先度スライダー ===== */
+    .priority-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .priority-label-text {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .priority-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 14px;
+      border-radius: 99px;
+      transition: all .2s;
+    }
+
+    .priority-badge.low    { background: #e8f5e9; color: #388e3c; }
+    .priority-badge.mid    { background: #fff8e1; color: #f57c00; }
+    .priority-badge.high   { background: #fce4ec; color: #c62828; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 99px;
+      background: linear-gradient(to right, var(--primary) 0%, var(--primary) 50%, var(--border) 50%, var(--border) 100%);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 2px 8px rgba(91,127,255,.4);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.2);
+    }
+
+    /* ===== 期日 ===== */
+    input[type="date"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      background: #fafbff;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="date"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(91,127,255,.12);
+      background: #fff;
+    }
+
+    /* ===== 送信ボタン ===== */
+    .submit-btn {
+      width: 100%;
+      padding: 17px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dk));
+      color: #fff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      letter-spacing: .06em;
+      box-shadow: 0 6px 20px rgba(91,127,255,.35);
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+      margin-top: 8px;
+    }
+
+    .submit-btn:active {
+      transform: scale(.97);
+      box-shadow: 0 3px 10px rgba(91,127,255,.25);
+    }
+
+    .submit-btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    /* ===== 送信中スピナー ===== */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== トースト通知 ===== */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 14px 24px;
+      border-radius: 99px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      white-space: nowrap;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s;
+      opacity: 0;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { background: var(--success); }
+    .toast.error   { background: #e53935; }
+
+    /* ===== 区切り線 ===== */
+    .divider {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 24px 0;
+    }
+
+    /* ===== フッター ===== */
+    .footer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <div class="header">
+    <div class="header-badge">Task Inbox</div>
+    <h1>タスク・アイデア<br>入力フォーム</h1>
+    <p>やりたいこと・考えたいこと・整理したいことを<br>ここから登録してください</p>
+  </div>
+
+  <!-- カード -->
+  <div class="card">
+
+    <!-- タスクID -->
+    <div class="task-id-banner">
+      <div class="dot"></div>
+      <span class="label">TASK ID</span>
+      <span class="id-value" id="taskIdDisplay">生成中...</span>
+    </div>
+
+    <form id="taskForm" novalidate>
+
+      <!-- カテゴリ -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">🗂</span>
+          カテゴリ
+          <span class="required-badge">必須</span>
+        </div>
+        <div class="category-group">
+          <label class="category-btn">
+            <input type="radio" name="category" value="やりたいこと" required />
+            <span class="cat-icon">🚀</span>
+            <span class="cat-label">やりたいこと</span>
+          </label>
+          <label class="category-btn">
+            <input type="radio" name="category" value="考えたいこと" />
+            <span class="cat-icon">💭</span>
+            <span class="cat-label">考えたいこと</span>
+          </label>
+          <label class="category-btn">
+            <input type="radio" name="category" value="整理したいこと" />
+            <span class="cat-icon">📋</span>
+            <span class="cat-label">整理したいこと</span>
+          </label>
+          <label class="category-btn">
+            <input type="radio" name="category" value="その他" />
+            <span class="cat-icon">✨</span>
+            <span class="cat-label">その他</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- タイトル -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">📌</span>
+          タイトル
+          <span class="required-badge">必須</span>
+        </div>
+        <input
+          type="text"
+          id="title"
+          name="title"
+          placeholder="一言で表すと？"
+          maxlength="100"
+          required
+        />
+      </div>
+
+      <!-- 内容 -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">📝</span>
+          内容・詳細
+          <span class="required-badge">必須</span>
+        </div>
+        <textarea
+          id="detail"
+          name="detail"
+          placeholder="背景・目的・気になっていること、なんでも書いてください"
+          required
+        ></textarea>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- 担当者 -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">👤</span>
+          担当者
+          <span class="required-badge">必須</span>
+        </div>
+        <div class="select-wrapper">
+          <select id="assignee" name="assignee" required>
+            <option value="" disabled selected>担当者を選んでください</option>
+            <option value="絹果">絹果</option>
+            <option value="上林">上林</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 優先度 -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">⚡</span>
+          優先度
+          <span class="optional-badge">任意</span>
+        </div>
+        <div class="priority-display">
+          <span class="priority-label-text">優先度を選択</span>
+          <span class="priority-badge mid" id="priorityBadge">中</span>
+        </div>
+        <input
+          type="range"
+          id="priority"
+          name="priority"
+          min="1"
+          max="3"
+          value="2"
+          step="1"
+        />
+      </div>
+
+      <!-- 期日 -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">📅</span>
+          期日（目安）
+          <span class="optional-badge">任意</span>
+        </div>
+        <input type="date" id="dueDate" name="dueDate" />
+      </div>
+
+      <!-- メモ -->
+      <div class="form-group">
+        <div class="form-label">
+          <span class="icon">💬</span>
+          補足メモ
+          <span class="optional-badge">任意</span>
+        </div>
+        <textarea
+          id="memo"
+          name="memo"
+          placeholder="参考リンク・関連情報・懸念点など"
+          style="min-height:80px"
+        ></textarea>
+      </div>
+
+      <!-- 送信ボタン -->
+      <button type="submit" class="submit-btn" id="submitBtn">
+        登録する
+      </button>
+
+    </form>
+  </div>
+
+  <div class="footer">送信されたデータはスプレッドシートに自動保存されます</div>
+
+  <!-- トースト -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============================================================
+    // 設定：GASのウェブアプリURLをここに貼り付けてください
+    // ============================================================
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxqc-Jks2aEsAfO94-4FiLg5b_uLjJb7oxtn_Vh_uP4HumAd1b7rspgFSxzzpTfl8rXUw/exec';
+    // ============================================================
+
+    /* ---- タスクID生成 ---- */
+    function generateTaskId() {
+      const now = new Date();
+      const ymd =
+        now.getFullYear().toString() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0');
+      const rand = Math.floor(Math.random() * 900 + 100); // 100〜999
+      return `TASK-${ymd}-${rand}`;
+    }
+
+    let currentTaskId = generateTaskId();
+    document.getElementById('taskIdDisplay').textContent = currentTaskId;
+
+    /* ---- 優先度スライダー ---- */
+    const priorityInput = document.getElementById('priority');
+    const priorityBadge = document.getElementById('priorityBadge');
+    const priorityMap = {
+      '1': { label: '低', cls: 'low' },
+      '2': { label: '中', cls: 'mid' },
+      '3': { label: '高', cls: 'high' },
+    };
+
+    function updatePriority(val) {
+      const p = priorityMap[val];
+      priorityBadge.textContent = p.label;
+      priorityBadge.className = `priority-badge ${p.cls}`;
+      const pct = ((val - 1) / 2) * 100;
+      priorityInput.style.background =
+        `linear-gradient(to right, var(--primary) 0%, var(--primary) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+    }
+
+    priorityInput.addEventListener('input', () => updatePriority(priorityInput.value));
+    updatePriority(priorityInput.value);
+
+    /* ---- トースト ---- */
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast ${type} show`;
+      setTimeout(() => { t.className = 'toast'; }, 3200);
+    }
+
+    /* ---- フォーム送信 ---- */
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+
+      // バリデーション
+      const category = form.querySelector('input[name="category"]:checked');
+      if (!category) { showToast('カテゴリを選択してください', 'error'); return; }
+      if (!form.title.value.trim()) { showToast('タイトルを入力してください', 'error'); return; }
+      if (!form.detail.value.trim()) { showToast('内容・詳細を入力してください', 'error'); return; }
+      if (!form.assignee.value) { showToast('担当者を選択してください', 'error'); return; }
+
+      const priorityLabels = { '1': '低', '2': '中', '3': '高' };
+
+      const payload = {
+        taskId:    currentTaskId,
+        timestamp: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+        category:  category.value,
+        title:     form.title.value.trim(),
+        detail:    form.detail.value.trim(),
+        assignee:  form.assignee.value,
+        priority:  priorityLabels[form.priority.value],
+        dueDate:   form.dueDate.value || '',
+        memo:      form.memo.value.trim(),
+      };
+
+      // 送信中UI
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>送信中...';
+
+      try {
+        await fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        showToast(`✅ ${currentTaskId} を登録しました！`);
+        form.reset();
+        updatePriority('2');
+        currentTaskId = generateTaskId();
+        document.getElementById('taskIdDisplay').textContent = currentTaskId;
+
+      } catch (err) {
+        showToast('送信に失敗しました。再度お試しください', 'error');
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '登録する';
+      }
+    });
+  </script>
+</body>
+</html>
